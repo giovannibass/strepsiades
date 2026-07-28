@@ -1,0 +1,25 @@
+# Python bytecode and cache directories
+__pycache__/
+*.py[cod]
+
+# Virtual environments
+.venv/
+venv/
+
+# Environment files and secrets
+.env
+.env.*
+
+# Test and tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Editor files
+*.swp
+*.swo
+
+# Operating-system files
+.DS_Store
