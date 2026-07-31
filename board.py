@@ -167,6 +167,7 @@ class Board:
         self.halfmove = halfmove_clock
         self.fullmove = fullmove_number
 
+    # Terminal display for the chessboard
     def display(self):
         rank = 8
         for x in self.squares:
@@ -175,22 +176,38 @@ class Board:
             rank -= 1
         print("   a b c d e f g h")
             
+    # Determines if a coordinate actually exists on the board.
+    def is_in_bounds(self, row, column):
+        return 0 <= row <= 7 and 0 <= column <= 7
+   
+    # Checks to see if a square is empty
+    def is_empty(self, row, column):
+        return self.is_in_bounds(row, column) and self.squares[row][column] == "."
+
+    # Checks to see what color a piece is
+    def piece_color(self, row, column):
+        if not self.is_in_bounds(row, column) or self.is_empty(row, column):
+            return None
+        if self.squares[row][column].isupper():
+            return "w"
+        else:
+            return "b"
+
+    # Checks if a friendly piece is at a square
+    def is_friendly_piece(self, row, column, color):
+        # Returns True if the square has a piece of the same color
+        return self.piece_color(row, column) == color
+    
+    # Checks if an enemy piece is at a square
+    def is_enemy_piece(self, row, column, color):
+        piece_color = self.piece_color(row, column)
+        # Returns True if square is in bounds, not empty, and is not a friendly piece
+        return piece_color is not None and piece_color != color
 
 if __name__ == '__main__':
     board = Board()
-
-    valid_fen = "8/8/8/8/8/8/8/K6k w - - 0 1"
-    invalid_fen = "8/8/8/8/8/8/8/Q6q x - - 12 30"
-
-    board.load_fen(valid_fen)
-
-    print("Before invalid attempt:")
-    print(board.__dict__)
-
-    try:
-        board.load_fen(invalid_fen)
-    except ValueError as error:
-        print("Rejected:", error)
-
-    print("After invalid attempt:")
-    print(board.__dict__) 
+    valid = "8/8/8/8/8/8/8/K6k w - - 0 1"
+    board.load_fen(valid)
+    coordinates = [(7, 0, "w"), (7, 0, "b"), (7, 7, "w"), (7, 7, "b"), (0, 0, "w"), (-1, 2, "w")]
+    for row, column, color in coordinates:
+        print(board.is_enemy_piece(row, column, color))
