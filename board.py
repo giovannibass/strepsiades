@@ -1,3 +1,5 @@
+from move import Move
+
 # Matrix for the chessboard
 
 def starting_position():
@@ -204,10 +206,50 @@ class Board:
         # Returns True if square is in bounds, not empty, and is not a friendly piece
         return piece_color is not None and piece_color != color
 
+    # Generates pseudo-legal knight moves
+    def generate_knight_moves(self, row, column):
+
+        # All the ways a knight can move
+        knight_offsets = [
+                (1, 2),
+                (2, 1),
+                (-1, -2),
+                (-2, -1),
+                (-1, 2),
+                (-2, 1),
+                (1, -2),
+                (2, -1)
+        ]
+        
+        # Specifying the color to be used
+        color = self.piece_color(row, column)
+
+        # Guard clauses to make sure there's a knight on a valid square.
+        if not self.is_in_bounds(row, column):
+            raise ValueError("Starting coordinate must be in bounds")
+        elif self.get_piece(row, column) not in ('n', 'N'):
+            raise ValueError("Specified square does not have a knight")
+
+        # Empty list that will store accepted coordinates as Move objects.
+        moves = []
+
+        for row_offset, column_offset in knight_offsets:
+            destination_row = row + row_offset
+            destination_column = column + column_offset
+
+            # Check that destination coordinate is in bounds and not friendly
+            if self.is_in_bounds(destination_row, destination_column) and not self.is_friendly_piece(destination_row, destination_column, color):
+                
+                # Create move objects and add them to moves list.
+                moves.append(Move((row, column), (destination_row, destination_column)))
+
+        return moves
+
+
 if __name__ == '__main__':
     board = Board()
-    valid = "8/8/8/8/8/8/8/K6k w - - 0 1"
+    valid = "7k/8/2P5/5p2/3n4/8/8/K7 w - - 0 1"
     board.load_fen(valid)
-    coordinates = [(7, 0, "w"), (7, 0, "b"), (7, 7, "w"), (7, 7, "b"), (0, 0, "w"), (-1, 2, "w")]
-    for row, column, color in coordinates:
-        print(board.is_enemy_piece(row, column, color))
+    moves = board.generate_knight_moves(4, 3)
+    print(moves)
+    print(len(moves))
