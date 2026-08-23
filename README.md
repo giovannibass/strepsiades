@@ -6,3 +6,4 @@ This project currently supports:
 - Chessboard representation in terminal
 - Loading positions from FEN strings
 - Command-line interface
+- Knight move generation
