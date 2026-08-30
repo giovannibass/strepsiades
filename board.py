@@ -18,7 +18,7 @@ def starting_position():
 def parse_rank(rank_text):
     row = []
     valid_symbols = ("p", "n", "b", "r", "q", "k", "P", "N", "B", "R", "Q", "K")
-    
+
     # Keeps track if the previous character was a digit
     previous_is_digit = False
 
@@ -27,14 +27,14 @@ def parse_rank(rank_text):
         if char.isdigit():
             if char not in "12345678":
                 raise ValueError("Invalid digit in FEN rank")
-            
+
             # If previous character is digit raise error.
             if previous_is_digit:
                 raise ValueError("Consecutive digits detected in FEN rank")
 
             previous_is_digit = True
             row.extend("." * int(char))
-       
+
         # Confirm that the character is a valid piece symbol. If so add it to the list.
         elif char in valid_symbols:
             previous_is_digit = False
@@ -48,16 +48,16 @@ def parse_rank(rank_text):
 
 def parse_piece_placement(piece_place):
     board = []
-    
+
     # Split into ranks
     ranks = piece_place.split("/")
-    
+
     # Make sure that there are 8 ranks.
     if len(ranks) != 8:
         raise ValueError("FEN piece placement must have 8 ranks")
 
     for rank in ranks:
-        
+
         # Make sure each rank contains 8 squares
         row = parse_rank(rank)
         if len(row) != 8:
@@ -120,7 +120,7 @@ def validate_half_full(half, full):
 
     if full < 1:
         raise ValueError("Fullmove counter needs to be greater tan or equal to 1")
-    
+
     return half, full
 
 class Board:
@@ -134,7 +134,7 @@ class Board:
 
     def get_piece(self, row, col):
         return self.squares[row][col]
-    
+
     # Validates the full FEN.
     def load_fen(self, full_fen):
         fen = full_fen.split()
@@ -147,19 +147,19 @@ class Board:
         active_color = fen[1]
         if active_color not in ('w', 'b'):
             raise ValueError("Active color must be white (w) or black (b)")
-        
-        
+
+
         # Castling rights validation
         castle_input = fen[2]
         validate_castle(castle_input)
-        
+
         # En passant validation
         en_passant = fen[3]
         validate_en_passant(en_passant)
 
         # Half-move and full move counter validation
         halfmove_clock, fullmove_number = validate_half_full(fen[4], fen[5])
-        
+
 
         # Assiging parsed pieces to the board
         self.squares = parse_piece_placement(fen[0])
@@ -177,11 +177,11 @@ class Board:
             print(f"{rank}  {piece}")
             rank -= 1
         print("   a b c d e f g h")
-            
+
     # Determines if a coordinate actually exists on the board.
     def is_in_bounds(self, row, column):
         return 0 <= row <= 7 and 0 <= column <= 7
-   
+
     # Checks to see if a square is empty
     def is_empty(self, row, column):
         return self.is_in_bounds(row, column) and self.squares[row][column] == "."
@@ -199,7 +199,7 @@ class Board:
     def is_friendly_piece(self, row, column, color):
         # Returns True if the square has a piece of the same color
         return self.piece_color(row, column) == color
-    
+
     # Checks if an enemy piece is at a square
     def is_enemy_piece(self, row, column, color):
         piece_color = self.piece_color(row, column)
@@ -220,7 +220,7 @@ class Board:
                 (1, -2),
                 (2, -1)
         ]
-        
+
         # Specifying the color to be used
         color = self.piece_color(row, column)
 
@@ -239,17 +239,114 @@ class Board:
 
             # Check that destination coordinate is in bounds and not friendly
             if self.is_in_bounds(destination_row, destination_column) and not self.is_friendly_piece(destination_row, destination_column, color):
-                
+
                 # Create move objects and add them to moves list.
                 moves.append(Move((row, column), (destination_row, destination_column)))
 
         return moves
 
+    # Generates pseudo-legal sliding moves used by rook, bishop, and queen
+    def generate_sliding_moves(self, row, column, directions):
+
+        # Guard clauses to make sure there's a piece on a valid square.
+        if not self.is_in_bounds(row, column):
+            raise ValueError("Starting coordinate must be in bounds")
+        if self.is_empty(row, column):
+            raise ValueError("Square cannot be empty")
+
+        # Specify the color that's being used
+        color = self.piece_color(row, column)
+
+
+        # Stores the results of the sliding moves
+        moves = []
+
+        for row_offset, column_offset in directions:
+
+            # Apply offset to first destination
+            destination_row = row + row_offset
+            destination_column = column  + column_offset
+
+            while self.is_in_bounds(destination_row, destination_column):
+
+                # If piece is friendly then stop the while loop
+                if self.is_friendly_piece(destination_row, destination_column, color):
+                    break
+
+                # If square has an enemy piece, append capture and stop
+                elif self.is_enemy_piece(destination_row, destination_column, color):
+                    # Create move objects and add captures to the list.
+                    moves.append(Move((row, column), (destination_row, destination_column)))
+                    break
+
+                else:
+                    # Create move objects and add them to moves list.
+                    moves.append(Move((row, column), (destination_row, destination_column)))
+
+                    destination_row += row_offset
+                    destination_column += column_offset
+
+        return moves
+
+    # Returns the rook moves created by the sliding move generator
+    def generate_rook_moves(self, row, column):
+
+        rook_directions = [
+                (1, 0),
+                (-1, 0),
+                (0, 1),
+                (0, -1),
+            ]
+
+        # Guard clauses to make sure there's a rook on a valid square.
+        if not self.is_in_bounds(row, column):
+            raise ValueError("Starting coordinate must be in bounds")
+        elif self.get_piece(row, column) not in ('r', 'R'):
+            raise ValueError("Specified square does not have a rook")
+
+        return self.generate_sliding_moves(row, column, rook_directions)
+
+    # Returns the bishop moves created by the sliding move generator
+    def generate_bishop_moves(self, row, column):
+
+        bishop_directions = [
+                (1, 1),
+                (-1, 1),
+                (1, - 1),
+                (-1, -1)
+            ]
+
+        # Guard clauses to make sure there's a bishop on a valid square.
+        if not self.is_in_bounds(row, column):
+            raise ValueError("Starting coordinate must be in bounds")
+        elif self.get_piece(row, column) not in ('b', 'B'):
+            raise ValueError("Specified square does not have a bishop")
+
+        return self.generate_sliding_moves(row, column, bishop_directions)
+
+
+    # Returns the queen moves created by the sliding move generator
+    def generate_queen_moves(self, row, column):
+
+        queen_directions = [
+                (1, 0),
+                (0, 1),
+                (-1, 0),
+                (0, -1),
+                (1, 1),
+                (-1, 1),
+                (1, - 1),
+                (-1, -1)
+            ]
+
+        # Guard clauses to make sure there's a queen on a valid square.
+        if not self.is_in_bounds(row, column):
+            raise ValueError("Starting coordinate must be in bounds")
+        elif self.get_piece(row, column) not in ('q', 'Q'):
+            raise ValueError("Specified square does not have a queen")
+
+        return self.generate_sliding_moves(row, column, queen_directions)
+
 
 if __name__ == '__main__':
-    board = Board()
-    valid = "7k/8/2P5/5p2/3n4/8/8/K7 w - - 0 1"
-    board.load_fen(valid)
-    moves = board.generate_knight_moves(4, 3)
-    print(moves)
-    print(len(moves))
+   pass
