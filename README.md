@@ -7,3 +7,4 @@ This project currently supports:
 - Loading positions from FEN strings
 - Command-line interface
 - Knight move generation
+- Sliding move generation (rooks, bishops, and queens)
