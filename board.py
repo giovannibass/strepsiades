@@ -347,6 +347,65 @@ class Board:
 
         return self.generate_sliding_moves(row, column, queen_directions)
 
+    # Generates pseudo-legal pawn moves
+    def generate_pawn_moves(self, row, column):
+        # Guard clauses to make sure there's a pawn on a valid square.
+        if not self.is_in_bounds(row, column):
+            raise ValueError("Starting coordinate must be in bounds")
+        elif self.get_piece(row, column) not in ('p', 'P'):
+            raise ValueError("Specified square does not have a pawn")
+
+        # Confirming the color of the piece
+        color = self.piece_color(row, column)
+
+        # Defining movement pattern
+        if color == 'w':
+            direction = -1
+            starting_row = 6
+            promotion_row = 0
+        else:
+            direction = 1
+            starting_row = 1
+            promotion_row = 7
+
+        # Creating list that will contain potential results
+        destinations = []
+
+        destination_row = row + direction
+        destination_column = column
+
+        # One-square check
+        if self.is_empty(destination_row, destination_column):
+            # Appending list with potential move.
+            destinations.append((destination_row, destination_column))
+
+            # Run validations for two-square push
+            two_step_row = destination_row + direction
+
+            if row == starting_row and self.is_empty(two_step_row, destination_column):
+                destinations.append((two_step_row, destination_column))
+
+        # Diagonal capture checks
+        for column_offset in (-1, 1):
+            # Variable to represent columns to the left and right
+            diag_column = column + column_offset
+
+            # Include enemy pieces found as potential moves
+            if self.is_enemy_piece(destination_row, diag_column, color):
+                destinations.append((destination_row, diag_column))
+
+        # List for accepted moves that will include promotions
+        moves = []
+
+        # Adding promotions to moves
+        for destination_row, destination_column in destinations:
+            if destination_row == promotion_row:
+                for promotion_piece in ("q", "r", "b", "n"):
+                    moves.append(Move((row, column), (destination_row, destination_column), promotion_piece))
+            else:
+                moves.append(Move((row, column), (destination_row, destination_column)))
+
+        return moves
 
 if __name__ == '__main__':
    pass
