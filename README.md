@@ -8,3 +8,4 @@ This project currently supports:
 - Command-line interface
 - Knight move generation
 - Sliding move generation (rooks, bishops, and queens)
+- Pawn move generation.
