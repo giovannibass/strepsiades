@@ -9,3 +9,4 @@ This project currently supports:
 - Knight move generation
 - Sliding move generation (rooks, bishops, and queens)
 - Pawn move generation.
+- King move generation.
