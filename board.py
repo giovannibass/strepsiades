@@ -407,5 +407,42 @@ class Board:
 
         return moves
 
+    # Returns pseudo-legal king moves
+    def generate_king_moves(self, row, column):
+        king_offsets = [
+                (0, 1),
+                (0, -1),
+                (1, 0),
+                (-1, 0),
+                (1, 1),
+                (-1, 1),
+                (1, -1),
+                (-1, -1)
+        ]
+
+        # Guard clauses to make sure there's a king on a valid square.
+        if not self.is_in_bounds(row, column):
+            raise ValueError("Starting coordinate must be in bounds")
+        elif self.get_piece(row, column) not in ('k', 'K'):
+            raise ValueError("Specified square does not have a king")
+
+        # Specifying the color to be used
+        color = self.piece_color(row, column)
+
+        # Empty list that will store accepted coordinates as Move objects.
+        moves = []
+
+        for row_offset, column_offset in king_offsets:
+            destination_row = row + row_offset
+            destination_column = column + column_offset
+
+            # Check that destination coordinate is in bounds and not friendly
+            if self.is_in_bounds(destination_row, destination_column) and not self.is_friendly_piece(destination_row, destination_column, color):
+
+                # Create move objects and add them to moves list.
+                moves.append(Move((row, column), (destination_row, destination_column)))
+        
+        return moves
+
 if __name__ == '__main__':
    pass
