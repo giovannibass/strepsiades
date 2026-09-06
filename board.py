@@ -45,7 +45,6 @@ def parse_rank(rank_text):
     return row
 
 # Splits the piece placement of FEN into each rank and runs it through parse_rank().
-
 def parse_piece_placement(piece_place):
     board = []
 
@@ -441,8 +440,39 @@ class Board:
 
                 # Create move objects and add them to moves list.
                 moves.append(Move((row, column), (destination_row, destination_column)))
-        
+
+        return moves
+
+
+    # Combines all pseudo-legal moves
+    def generate_pseudo_legal_moves(self):
+        moves = []
+
+        # Loop through every square on the board.
+        for row, board_row in enumerate(self.squares):
+            for column, piece in enumerate(board_row):
+                if self.piece_color(row, column) == self.side_to_move:
+
+                    # Route each piece to their move generator
+                    piece_type = piece.lower()
+
+                    if piece_type == "p":
+                        piece_moves = (self.generate_pawn_moves(row, column))
+                    elif piece_type == "n":
+                        piece_moves = (self.generate_knight_moves(row, column))
+                    elif piece_type == "b":
+                        piece_moves = (self.generate_bishop_moves(row, column))
+                    elif piece_type == "r":
+                        piece_moves = (self.generate_rook_moves(row, column))
+                    elif piece_type == "q":
+                        piece_moves = (self.generate_queen_moves(row, column))
+                    elif piece_type == "k":
+                        piece_moves = (self.generate_king_moves(row, column))
+
+                    # Adding the stored moves to the flat `moves` list
+                    moves.extend(piece_moves)
+
         return moves
 
 if __name__ == '__main__':
-   pass
+    pass
