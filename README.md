@@ -10,3 +10,4 @@ This project currently supports:
 - Sliding move generation (rooks, bishops, and queens)
 - Pawn move generation.
 - King move generation.
+- Making and undoing moves
