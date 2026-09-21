@@ -1,4 +1,5 @@
 from move import Move
+from dataclasses import dataclass
 
 # Matrix for the chessboard
 
@@ -122,14 +123,28 @@ def validate_half_full(half, full):
 
     return half, full
 
+@dataclass(frozen=True)
+class _UndoRecord:
+    move: Move
+    changed_squares: tuple[tuple[int, int, str], ...]
+    side_to_move: str
+    castling_rights: str
+    en_passant_target: str
+    halfmove: int
+    fullmove: int
+
 class Board:
     def __init__(self):
+        # Default FEN components
         self.squares = starting_position()
         self.side_to_move = "w"
         self.castling_rights = "KQkq"
         self.en_passant_target = "-"
         self.halfmove = 0
         self.fullmove = 1
+
+        # History for undoing moves
+        self._history: list[_UndoRecord] = []
 
     def get_piece(self, row, col):
         return self.squares[row][col]
@@ -473,6 +488,150 @@ class Board:
                     moves.extend(piece_moves)
 
         return moves
+
+    def make_move(self, move):
+        # Making the undo record
+        start_row, start_column = move.start
+        end_row, end_column = move.end
+        
+        changed_squares = ((start_row, start_column, self.squares[start_row][start_column]), 
+                           (end_row, end_column, self.squares[end_row][end_column]))
+        
+        # Replacing changed_squares when en passant is involved        
+        if move.is_en_passant:
+            changed_squares = (
+                (start_row, start_column, self.squares[start_row][start_column]),
+                (end_row, end_column, self.squares[end_row][end_column]),
+                (start_row, end_column, self.squares[start_row][end_column])
+            )
+        
+        # Replacing changed_squares when castling is involved
+        if move.is_castling:
+            if end_column == 6:
+                rook_start_column = 7
+                rook_end_column = 5
+            elif end_column == 2:
+                rook_start_column = 0
+                rook_end_column = 3
+
+            changed_squares = (
+                (start_row, start_column, self.squares[start_row][start_column]),
+                (end_row, end_column, self.squares[end_row][end_column]),
+                (start_row, rook_start_column, self.squares[start_row][rook_start_column]),
+                (start_row, rook_end_column, self.squares[start_row][rook_end_column])
+            )
+
+        record = _UndoRecord(
+            move,
+            changed_squares,
+            self.side_to_move,
+            self.castling_rights,
+            self.en_passant_target,
+            self.halfmove,
+            self.fullmove
+        )
+        
+        # Keeping record in self._history
+        self._history.append(record)
+        
+        # Update halfmove counter when a pawn is moved or a capture is made
+        # Capture is detected by seeing if the square a piece is moving to is occupied
+        if self.get_piece(start_row, start_column) in ("P", "p") or not self.is_empty(end_row, end_column):
+            self.halfmove = 0
+        else:
+            self.halfmove += 1
+
+        # Update full-move counter
+        if self.side_to_move == "b":
+            self.fullmove += 1
+
+        # Updating en passant target
+        # Clearing the previous target square. Important in case the opponent decides to take en passant
+        self.en_passant_target = "-"
+
+        # See if a pawn moved and if it's a double pawn push
+        if self.get_piece(start_row, start_column) in ("P", "p") and abs(end_row - start_row) == 2:
+            # Calculate target row
+            target_row = (start_row + end_row) // 2
+
+            # Calculating target square
+            self.en_passant_target = "abcdefgh"[start_column] + str(8 - target_row)
+
+        # Updating castling rights
+        moving_piece = self.get_piece(start_row, start_column)
+        captured_piece = self.get_piece(end_row, end_column)
+
+        king_rights = {
+            "K": "KQ",
+            "k": "kq"
+        }
+
+        rook_rights = {
+            ("R", (7, 7)): "K",
+            ("R", (7, 0)): "Q",
+            ("r", (0, 7)): "k",
+            ("r", (0, 0)): "q"
+        }
+
+        # Removing castling rights if king moves
+        rights_to_remove = king_rights.get(moving_piece, "")
+        
+        # Removing castling rights if rook moves
+        rights_to_remove += rook_rights.get((moving_piece, (start_row, start_column)), "")
+        
+        # Removing castling rights if rook is captured
+        rights_to_remove += rook_rights.get((captured_piece, (end_row, end_column)), "")
+        
+        # Loop through castling rights
+        for symbol in rights_to_remove:
+            self.castling_rights = self.castling_rights.replace(symbol, "")
+       
+        # Clear castling rights if there are none left
+        if self.castling_rights == "":
+            self.castling_rights = "-"
+
+        # Change side_to_move after the move has been made
+        if self.side_to_move == "w":
+            self.side_to_move = "b"
+        else:
+            self.side_to_move = "w"
+        
+        # Pawn promotion
+        destination_piece = moving_piece
+
+        if move.promotion is not None:
+            if moving_piece.isupper():
+                destination_piece = move.promotion.upper()
+            else:
+                destination_piece = move.promotion.lower()
+        
+        # Removing the pawn that was taken by enpassant.
+        if move.is_en_passant:
+            self.squares[start_row][end_column] = "."
+
+        # Updating location of the rook after castling
+        if move.is_castling:
+            self.squares[start_row][rook_end_column] = self.squares[start_row][rook_start_column]
+            self.squares[start_row][rook_start_column] = "."
+
+        # Put moving piece on destination and empty the starting square
+        self.squares[end_row][end_column] = destination_piece
+        self.squares[start_row][start_column] = "."
+
+    def undo_move(self):
+        # Retrieve and remove the newest record
+        record = self._history.pop()
+
+        # Loop over changed_squares and restore each squre
+        for row, column, previous_piece in record.changed_squares:
+            self.squares[row][column] = previous_piece
+
+        # Restoring other fields
+        self.side_to_move = record.side_to_move
+        self.castling_rights = record.castling_rights
+        self.en_passant_target = record.en_passant_target
+        self.halfmove = record.halfmove
+        self.fullmove = record.fullmove
 
 if __name__ == '__main__':
     pass
