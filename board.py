@@ -633,5 +633,168 @@ class Board:
         self.halfmove = record.halfmove
         self.fullmove = record.fullmove
 
+    def is_square_attacked(self, row, column, attacking_color):
+        
+        # All the ways a knight can move
+        knight_offsets = [
+            (1, 2),
+            (2, 1),
+            (-1, -2),
+            (-2, -1),
+            (-1, 2),
+            (-2, 1),
+            (1, -2),
+            (2, -1)
+        ]
+
+        king_offsets = [
+            (0, 1),
+            (0, -1),
+            (1, 0),
+            (-1, 0),
+            (1, 1),
+            (-1, 1),
+            (1, -1),
+            (-1, -1)
+        ]
+
+        orthogonal_ray = [
+            (1, 0),
+            (-1, 0),
+            (0, 1),
+            (0, -1),
+        ]
+
+        diagonal_ray = [
+            (1, 1),
+            (-1, 1),
+            (1, - 1),
+            (-1, -1)
+        ]
+
+        # Check if target is out of bounds
+        if not self.is_in_bounds(row, column):
+            raise ValueError("Target is out of bounds")
+
+        if attacking_color not in ("w", "b"):
+            raise ValueError("Color is not white or black")
+        
+        # Choose pawn symbol from attacking color
+        if attacking_color == "w":
+            source_row = row + 1
+            pawn = "P"
+            knight = "N"
+            king = "K"
+            orthogonal = ("R", "Q")
+            diagonal = ("B", "Q")
+
+        elif attacking_color == "b":
+            source_row = row - 1
+            pawn = "p"
+            knight = "n"
+            king = "k"
+            orthogonal = ("r", "q")
+            diagonal = ("b", "q")
+        
+        # Check if source squares have an attacking pawn
+        for column_offset in (1, -1):
+            source_column = column + column_offset
+            
+            # Make sure the attacking pawn is in bounds
+            if not self.is_in_bounds(source_row, source_column):
+                continue
+
+            # Check each square to see if it has a pawn of the appropriate color
+            if self.get_piece(source_row, source_column) == pawn:
+                return True
+        
+        # Check if source squares have an attacking knight
+        for row_offset, column_offset in knight_offsets:
+            source_row = row + row_offset
+            source_column = column + column_offset
+
+            # Make sure the attacking knight is in bounds
+            if not self.is_in_bounds(source_row, source_column):
+                continue
+
+            # Check each square to see if it has a knight of the appropriate color
+            if self.get_piece(source_row, source_column) == knight:
+                return True
+
+        # Check if source squares have an attacking king
+        for row_offset, column_offset in king_offsets:
+            source_row = row + row_offset
+            source_column = column + column_offset
+
+            # Make sure the attacking king is in bounds
+            if not self.is_in_bounds(source_row, source_column):
+                continue
+
+            # Check each square to see if it has a king of the appropriate color
+            if self.get_piece(source_row, source_column) == king:
+                return True
+
+        # Figure out source row/column for orthogonal movements
+        for row_offset, column_offset in orthogonal_ray:
+            source_row = row + row_offset
+            source_column = column + column_offset
+
+            # See which squares are in orthogonal ray
+            while self.is_in_bounds(source_row, source_column):
+                # Check if a square has a piece on it
+                if not self.is_empty(source_row, source_column):
+                    # Check if that piece is a rook or queen
+                    if self.get_piece(source_row, source_column) in orthogonal:
+                        return True
+                    else:
+                        break
+                
+                # Add the offsets to provide the new square to check
+                else:
+                    source_row += row_offset
+                    source_column += column_offset
+
+        # Figure out source row/column for diagonal movements
+        for row_offset, column_offset in diagonal_ray:
+            source_row = row + row_offset
+            source_column = column + column_offset
+
+            # See which squares are in diagonal ray
+            while self.is_in_bounds(source_row, source_column):
+                # Check if a square has a piece on it
+                if not self.is_empty(source_row, source_column):
+                    # Check if that piece is a bishop or queen
+                    if self.get_piece(source_row, source_column) in diagonal:
+                        return True
+                    else:
+                        break
+                
+                # Add the offsets to provide the new square to check
+                else:
+                    source_row += row_offset
+                    source_column += column_offset
+
+        # Mark as False if no attackers are detected
+        return False
+
+    def is_in_check(self, color):
+        if color == "w":
+            king = "K"
+            attacker = "b"
+        elif color == "b":
+            king = "k"
+            attacker = "w"
+        else:
+            raise ValueError("Color must be 'w' or 'b'")
+
+        # Loop through every square on the board and find the king
+        for row, board_row in enumerate(self.squares):
+            for column, piece in enumerate(board_row):
+                if piece == king:
+                    return self.is_square_attacked(row, column, attacker)
+
+        raise ValueError("King is missing on board")
+                
+
 if __name__ == '__main__':
     pass
