@@ -11,3 +11,4 @@ This project currently supports:
 - Pawn move generation.
 - King move generation.
 - Making and undoing moves
+- Board logic for detecting attacked squares and checks
