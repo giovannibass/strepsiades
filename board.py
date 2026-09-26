@@ -794,7 +794,40 @@ class Board:
                     return self.is_square_attacked(row, column, attacker)
 
         raise ValueError("King is missing on board")
-                
+
+    def generate_legal_moves(self):
+        # Save the side to move
+        king_to_check = self.side_to_move
+
+        # List for legal candidates
+        legal_moves = []
+
+        # Generating pseudo-legal moves
+        moves = self.generate_pseudo_legal_moves()
+
+        if king_to_check == "w":
+            king = "k"
+        elif king_to_check == "b":
+            king = "K"
+
+        # Make the move
+        for move in moves:
+            # Check for impossible positions where king can be captured
+            end_row, end_column = move.end
+
+            if self.squares[end_row][end_column] == king:
+               continue
+
+            self.make_move(move)
+
+            # Check the saved side if king is in check
+            try:
+                if not self.is_in_check(king_to_check):
+                    legal_moves.append(move)
+            finally:
+                self.undo_move()
+
+        return legal_moves
 
 if __name__ == '__main__':
     pass
