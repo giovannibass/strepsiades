@@ -399,6 +399,9 @@ class Board:
             if row == starting_row and self.is_empty(two_step_row, destination_column):
                 destinations.append((two_step_row, destination_column))
 
+        # List for acceptde moves that will includes promotions
+        moves = []
+
         # Diagonal capture checks
         for column_offset in (-1, 1):
             # Variable to represent columns to the left and right
@@ -408,8 +411,18 @@ class Board:
             if self.is_enemy_piece(destination_row, diag_column, color):
                 destinations.append((destination_row, diag_column))
 
-        # List for accepted moves that will include promotions
-        moves = []
+            # En passant check
+            if self.is_in_bounds(destination_row, diag_column):
+                diagonal_square = "abcdefgh"[diag_column] + str(8 - destination_row)
+
+                if (
+                    self.en_passant_target == diagonal_square
+                    and self.is_empty(destination_row, diag_column)
+                    and self.get_piece(row, diag_column) in ("p", "P")
+                    and self.is_enemy_piece(row, diag_column, color)
+                ):
+
+                    moves.append(Move((row, column), (destination_row, diag_column), is_en_passant=True))
 
         # Adding promotions to moves
         for destination_row, destination_column in destinations:
@@ -445,6 +458,70 @@ class Board:
 
         # Empty list that will store accepted coordinates as Move objects.
         moves = []
+
+        if color == "w":
+            king_castle = self.squares[7][4]
+            rook_kingside = self.squares[7][7]
+            rook_queenside = self.squares[7][0]
+        elif color == "b":
+            king_castle = self.squares[0][4]
+            rook_kingside = self.squares[0][7]
+            rook_queenside = self.squares[0][0]
+
+        # Castling checks
+        # White kingside
+        if (
+            color == "w"
+            and "K" in self.castling_rights
+            and king_castle == "K"
+            and rook_kingside == "R"
+            and self.is_empty(7, 5)
+            and self.is_empty(7, 6)
+            and not self.is_square_attacked(7, 4, "b")
+            and not self.is_square_attacked(7, 5, "b")
+        ):
+            moves.append(Move((7, 4), (7, 6), is_castling=True))
+
+        # White queenside
+        if (
+            color == "w"
+            and "Q" in self.castling_rights
+            and king_castle == "K"
+            and rook_queenside == "R"
+            and self.is_empty(7, 3)
+            and self.is_empty(7, 2)
+            and self.is_empty(7, 1)
+            and not self.is_square_attacked(7, 4, "b")
+            and not self.is_square_attacked(7, 3, "b")
+        ):
+            moves.append(Move((7, 4), (7, 2), is_castling=True))
+
+        # Black kingside
+        if (
+            color == "b"
+            and "k" in self.castling_rights
+            and king_castle == "k"
+            and rook_kingside == "r"
+            and self.is_empty(0, 5)
+            and self.is_empty(0, 6)
+            and not self.is_square_attacked(0, 4, "w")
+            and not self.is_square_attacked(0, 5, "w")
+        ):
+            moves.append(Move((0, 4), (0, 6), is_castling=True))
+
+        # Black queenside
+        if (
+            color == "b"
+            and "q" in self.castling_rights
+            and king_castle == "k"
+            and rook_queenside == "r"
+            and self.is_empty(0, 3)
+            and self.is_empty(0, 2)
+            and self.is_empty(0, 1)
+            and not self.is_square_attacked(0, 4, "w")
+            and not self.is_square_attacked(0, 3, "w")
+        ):
+            moves.append(Move((0, 4), (0, 2), is_castling=True))
 
         for row_offset, column_offset in king_offsets:
             destination_row = row + row_offset
@@ -493,18 +570,18 @@ class Board:
         # Making the undo record
         start_row, start_column = move.start
         end_row, end_column = move.end
-        
-        changed_squares = ((start_row, start_column, self.squares[start_row][start_column]), 
+
+        changed_squares = ((start_row, start_column, self.squares[start_row][start_column]),
                            (end_row, end_column, self.squares[end_row][end_column]))
-        
-        # Replacing changed_squares when en passant is involved        
+
+        # Replacing changed_squares when en passant is involved
         if move.is_en_passant:
             changed_squares = (
                 (start_row, start_column, self.squares[start_row][start_column]),
                 (end_row, end_column, self.squares[end_row][end_column]),
                 (start_row, end_column, self.squares[start_row][end_column])
             )
-        
+
         # Replacing changed_squares when castling is involved
         if move.is_castling:
             if end_column == 6:
@@ -530,10 +607,10 @@ class Board:
             self.halfmove,
             self.fullmove
         )
-        
+
         # Keeping record in self._history
         self._history.append(record)
-        
+
         # Update halfmove counter when a pawn is moved or a capture is made
         # Capture is detected by seeing if the square a piece is moving to is occupied
         if self.get_piece(start_row, start_column) in ("P", "p") or not self.is_empty(end_row, end_column):
@@ -575,17 +652,17 @@ class Board:
 
         # Removing castling rights if king moves
         rights_to_remove = king_rights.get(moving_piece, "")
-        
+
         # Removing castling rights if rook moves
         rights_to_remove += rook_rights.get((moving_piece, (start_row, start_column)), "")
-        
+
         # Removing castling rights if rook is captured
         rights_to_remove += rook_rights.get((captured_piece, (end_row, end_column)), "")
-        
+
         # Loop through castling rights
         for symbol in rights_to_remove:
             self.castling_rights = self.castling_rights.replace(symbol, "")
-       
+
         # Clear castling rights if there are none left
         if self.castling_rights == "":
             self.castling_rights = "-"
@@ -595,7 +672,7 @@ class Board:
             self.side_to_move = "b"
         else:
             self.side_to_move = "w"
-        
+
         # Pawn promotion
         destination_piece = moving_piece
 
@@ -604,7 +681,7 @@ class Board:
                 destination_piece = move.promotion.upper()
             else:
                 destination_piece = move.promotion.lower()
-        
+
         # Removing the pawn that was taken by enpassant.
         if move.is_en_passant:
             self.squares[start_row][end_column] = "."
@@ -634,7 +711,7 @@ class Board:
         self.fullmove = record.fullmove
 
     def is_square_attacked(self, row, column, attacking_color):
-        
+
         # All the ways a knight can move
         knight_offsets = [
             (1, 2),
@@ -678,7 +755,7 @@ class Board:
 
         if attacking_color not in ("w", "b"):
             raise ValueError("Color is not white or black")
-        
+
         # Choose pawn symbol from attacking color
         if attacking_color == "w":
             source_row = row + 1
@@ -695,11 +772,11 @@ class Board:
             king = "k"
             orthogonal = ("r", "q")
             diagonal = ("b", "q")
-        
+
         # Check if source squares have an attacking pawn
         for column_offset in (1, -1):
             source_column = column + column_offset
-            
+
             # Make sure the attacking pawn is in bounds
             if not self.is_in_bounds(source_row, source_column):
                 continue
@@ -707,7 +784,7 @@ class Board:
             # Check each square to see if it has a pawn of the appropriate color
             if self.get_piece(source_row, source_column) == pawn:
                 return True
-        
+
         # Check if source squares have an attacking knight
         for row_offset, column_offset in knight_offsets:
             source_row = row + row_offset
@@ -748,7 +825,7 @@ class Board:
                         return True
                     else:
                         break
-                
+
                 # Add the offsets to provide the new square to check
                 else:
                     source_row += row_offset
@@ -768,7 +845,7 @@ class Board:
                         return True
                     else:
                         break
-                
+
                 # Add the offsets to provide the new square to check
                 else:
                     source_row += row_offset
