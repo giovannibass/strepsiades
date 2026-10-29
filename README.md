@@ -14,3 +14,4 @@ This project currently supports:
 - Board logic for detecting attacked squares and checks
 - Added legal move generation
 - Added special move generation (castling and en passant)
+- Added material evaluation
